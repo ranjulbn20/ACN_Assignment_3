@@ -1,5 +1,3 @@
-
-
 # Start Ryu SDN controller
 ryu-manager ryu.app.simple_switch
 
