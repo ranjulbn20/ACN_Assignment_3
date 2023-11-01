@@ -5,7 +5,7 @@ from mininet.cli import CLI
 
 class CustomTopology(Topo):
     def build(self):
-        # Add hubs (broadcast domains)
+        # Add switches
         s1 = self.addSwitch('s1', cls=Hub)
         s2 = self.addSwitch('s2', cls=Hub)
 
@@ -17,18 +17,11 @@ class CustomTopology(Topo):
         h5 = self.addHost('h5')
 
         # Add links
+        self.addLink(s1, s2)
         self.addLink(h1, s1)
         self.addLink(h2, s1)
         self.addLink(h3, s1)
         self.addLink(h4, s2)
         self.addLink(h5, s2)
 
-def create_topology():
-    topo = CustomTopology()
-    net = Mininet(topo=topo, controller=lambda name: RemoteController(name, ip='127.0.0.1'))
-    net.start()
-    CLI(net)
-    net.stop()
-
-if __name__ == '__main__':
-    create_topology()
+topos = { 'mytopo' : ( lambda: CustomTopology() )}
