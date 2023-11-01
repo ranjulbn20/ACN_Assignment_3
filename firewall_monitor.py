@@ -32,6 +32,13 @@ net = Mininet(topo=CustomTopology(), controller=RemoteController)
 # Start the network
 net.start()
 
+# Get host objects
+h1 = net.get('h1')
+h2 = net.get('h2')
+h3 = net.get('h3')
+h4 = net.get('h4')
+h5 = net.get('h5')
+
 # Add OpenFlow rules to implement the firewall
 s1 = net.get('s1')
 s2 = net.get('s2')
