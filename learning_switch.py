@@ -24,4 +24,4 @@ class CustomTopology(Topo):
         self.addLink(h4, s2)
         self.addLink(h5, s2)
 
-topos = { 'mytopo' : ( lambda: CustomToplogy() )}
+topos = { 'mytopo' : ( lambda: CustomTopology() )}
