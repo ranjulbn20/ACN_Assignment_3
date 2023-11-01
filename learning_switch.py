@@ -24,12 +24,4 @@ class CustomTopology(Topo):
         self.addLink(h4, s2)
         self.addLink(h5, s2)
 
-def create_topology():
-    topo = CustomTopology()
-    net = Mininet(topo=topo, controller=lambda name: RemoteController(name, ip='127.0.0.1'), topo=topo)
-    net.start()
-    CLI(net)
-    net.stop()
-
-if __name__ == '__main__':
-    create_topology()
+topos = { 'mytopo' : ( lambda: CustomToplogy() )}
