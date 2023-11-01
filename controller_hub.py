@@ -2,6 +2,11 @@ from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.node import RemoteController
 from mininet.cli import CLI
+from mininet.node import OVSSwitch
+
+class Hub(OVSSwitch):
+    def __init__(self, name, **params):
+        OVSSwitch.__init__(self, name, failMode='standalone', **params)
 
 class CustomTopology(Topo):
     def build(self):
