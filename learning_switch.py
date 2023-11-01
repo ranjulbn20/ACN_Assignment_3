@@ -26,7 +26,7 @@ class CustomTopology(Topo):
 
 def create_topology():
     topo = CustomTopology()
-    net = Mininet(topo=topo, controller=lambda name: RemoteController(name, ip='127.0.0.1'))
+    net = Mininet(topo=topo, controller=lambda name: RemoteController(name, ip='127.0.0.1'), topo=topo)
     net.start()
     CLI(net)
     net.stop()
