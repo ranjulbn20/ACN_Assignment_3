@@ -44,13 +44,13 @@ s1 = net.get('s1')
 s2 = net.get('s2')
 
 # Block communication between H2 and H3 with H5 on switch S1
-s1.dpctl('add-flow in_port=1,dl_dst=' + net.h2.MAC() + ',actions=drop')
-s1.dpctl('add-flow in_port=1,dl_dst=' + net.h3.MAC() + ',actions=drop')
-s1.dpctl('add-flow in_port=1,dl_dst=' + net.h5.MAC() + ',actions=drop')
+s1.dpctl('add-flow in_port=1,dl_dst=' + h2.MAC() + ',actions=drop')
+s1.dpctl('add-flow in_port=1,dl_dst=' + h3.MAC() + ',actions=drop')
+s1.dpctl('add-flow in_port=1,dl_dst=' + h5.MAC() + ',actions=drop')
 
 # Block communication between H1 and H4 on switch S2
-s2.dpctl('add-flow in_port=1,dl_dst=' + net.h1.MAC() + ',actions=drop')
-s2.dpctl('add-flow in_port=1,dl_dst=' + net.h4.MAC() + ',actions=drop')
+s2.dpctl('add-flow in_port=1,dl_dst=' + h1.MAC() + ',actions=drop')
+s2.dpctl('add-flow in_port=1,dl_dst=' + h4.MAC() + ',actions=drop')
 
 # Count packets coming from H3 on switch S1
 s1.dpctl('add-flow in_port=3,actions=controller')
