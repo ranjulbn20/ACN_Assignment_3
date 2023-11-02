@@ -43,7 +43,7 @@ class LoadBalancer(app_manager.RyuApp):
         if dstIp not in self.servers:
             # Select the next server in the round-robin fashion
             target_server = self.servers[self.next_server_index]
-            self.next_server_index = (self.next_server_index + 1) % len(self.servers
+            self.next_server_index = (self.next_server_index + 1) % len(self.servers)
         else:
             target_server = dstIp
 
@@ -81,7 +81,7 @@ class LoadBalancer(app_manager.RyuApp):
                                     eth_type=0x0800)
         actions = [ofp_parser.OFPActionSetField(ipv4_dst=target_server),
                    ofp_parser.OFPActionOutput(self.ip_to_port[target_server])]
-        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)
+        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
         
         mod = ofp_parser.OFPFlowMod(
             datapath=datapath,
@@ -98,7 +98,7 @@ class LoadBalancer(app_manager.RyuApp):
                                     eth_type=0x0800)
         actions = [ofp_parser.OFPActionSetField(ipv4_src=self.virtual_ip),
                    ofp_parser.OFPActionOutput(in_port)]
-        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)
+        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
 
         mod = ofp_parser.OFPFlowMod(
             datapath=datapath,
