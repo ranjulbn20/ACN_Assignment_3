@@ -3,7 +3,7 @@ from mininet.net import Mininet
 from mininet.node import RemoteController
 from mininet.cli import CLI
 
-class CustomTopology(Topo):
+class LearningSwitch(Topo):
     def build(self):
         # Add switches
         s1 = self.addSwitch('s1')
@@ -24,4 +24,12 @@ class CustomTopology(Topo):
         self.addLink(h4, s2)
         self.addLink(h5, s2)
 
-topos = { 'mytopo' : ( lambda: CustomTopology() )}
+if __name__ == '__main__':
+    setLogLevel('info')
+    topo = LearningSwitch()
+    c1 = RemoteController('c1', ip='127.0.0.1')
+    net = Mininet(topo=topo, controller=c1)
+    net.start()
+    net.pingAll()
+    CLI(net)
+    net.stop()
