@@ -25,7 +25,7 @@ class LearningSwitch(Topo):
         self.addLink(h5, s2)
 
 if __name__ == '__main__':
-    setLogLevel('info')
+    #setLogLevel('info')
     topo = LearningSwitch()
     c1 = RemoteController('c1', ip='127.0.0.1')
     net = Mininet(topo=topo, controller=c1)
