@@ -9,29 +9,15 @@ from ryu.lib.packet import arp
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
 
-
 class LoadBalancer(app_manager.RyuApp):
-    OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]     # Specify the use of OpenFlow v13
-    virtual_ip = "10.0.0.42"              # The virtual server IP
-    ## Hosts 5 and 6 are servers.
-    H4_mac = "00:00:00:00:00:04"          # Host 5's mac
-    H4_ip = "10.0.0.4"                    # Host 5's IP   
-    H5_mac = "00:00:00:00:00:04"          # Host 6's mac
-    H5_ip = "10.0.0.5"                    # Host 6's IP
-    next_server = ""      # Stores the IP of the  next server to use in round robin manner
-    current_server = ""   # Stores the current server's IP
-    ip_to_port = {H4_ip: 4, H5_ip: 5}
-    ip_to_mac = {"10.0.0.1": "00:00:00:00:00:01",
-                 "10.0.0.2": "00:00:00:00:00:02",
-                 "10.0.0.3": "00:00:00:00:00:03"}
+    OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+    virtual_ip = "10.0.0.42"
+    servers = ["10.0.0.4", "10.0.0.5"]  # List of server IP addresses
+    next_server_index = 0
 
     def __init__(self, *args, **kwargs):
         super(LoadBalancer, self).__init__(*args, **kwargs)
-        self.next_server = self.H4_ip
-        self.current_server = self.H4_ip
 
-    # This function is called when a packet arrives from the switch
-    # after the initial handshake has been completed.
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
         msg = ev.msg
@@ -43,37 +29,25 @@ class LoadBalancer(app_manager.RyuApp):
         pkt = packet.Packet(msg.data)
         etherFrame = pkt.get_protocol(ethernet.ethernet)
 
-        # If the packet is an ARP packet, create new flow table
-        # entries and send an ARP response.
         if etherFrame.ethertype == ether_types.ETH_TYPE_ARP:
             self.add_flow(dp, pkt, ofp_parser, ofp, in_port)
             self.arp_response(dp, pkt, etherFrame, ofp_parser, ofp, in_port)
-            self.current_server = self.next_server
-            return
-        else:
             return
 
-    # Sends an ARP response to the contacting host with the
-    # real MAC address of a server.
     def arp_response(self, datapath, packet, etherFrame, ofp_parser, ofp, in_port):
         arpPacket = packet.get_protocol(arp.arp)
         dstIp = arpPacket.src_ip
         srcIp = arpPacket.dst_ip
         dstMac = etherFrame.src
-        
-        # If the ARP request isn't from one of the two servers,
-        # choose the target/source MAC address from one of the servers;
-        # else the target MAC address is set to the one corresponding
-        # to the target host's IP.
-        if dstIp != self.H4_ip and dstIp != self.H5_ip:
-            if self.next_server == self.H4_ip:
-                srcMac = self.H4_mac
-                self.next_server = self.H5_ip
-            else:
-                srcMac = self.H5_mac
-                self.next_server = self.H4_ip
+
+        if dstIp not in self.servers:
+            # Select the next server in the round-robin fashion
+            target_server = self.servers[self.next_server_index]
+            self.next_server_index = (self.next_server_index + 1) % len(self.servers
         else:
-            srcMac = self.ip_to_mac[srcIp] 
+            target_server = dstIp
+
+        srcMac = self.ip_to_mac[target_server]
 
         e = ethernet.ethernet(dstMac, srcMac, ether_types.ETH_TYPE_ARP)
         a = arp.arp(1, 0x0800, 6, 4, 2, srcMac, srcIp, dstMac, dstIp)
@@ -82,9 +56,7 @@ class LoadBalancer(app_manager.RyuApp):
         p.add_protocol(a)
         p.serialize()
 
-        # ARP action list
         actions = [ofp_parser.OFPActionOutput(ofp.OFPP_IN_PORT)]
-        # ARP output message
         out = ofp_parser.OFPPacketOut(
             datapath=datapath,
             buffer_id=ofp.OFP_NO_BUFFER,
@@ -92,23 +64,24 @@ class LoadBalancer(app_manager.RyuApp):
             actions=actions,
             data=p.data
         )
-        datapath.send_msg(out) # Send out ARP reply
+        datapath.send_msg(out)
 
-    # Sets up the flow table in the switch to map IP addresses correctly.
     def add_flow(self, datapath, packet, ofp_parser, ofp, in_port):
         srcIp = packet.get_protocol(arp.arp).src_ip
 
-        # Don't push forwarding rules if an ARP request is received from a server.
-        if srcIp == self.H4_ip or srcIp == self.H5_ip:
+        if srcIp in self.servers:
             return
 
-        # Generate flow from host to server.
+        # Select the next server in the round-robin fashion
+        target_server = self.servers[self.next_server_index]
+        self.next_server_index = (self.next_server_index + 1) % len(self.servers)
+
         match = ofp_parser.OFPMatch(in_port=in_port,
                                     ipv4_dst=self.virtual_ip,
                                     eth_type=0x0800)
-        actions = [ofp_parser.OFPActionSetField(ipv4_dst=self.current_server),
-                   ofp_parser.OFPActionOutput(self.ip_to_port[self.current_server])]
-        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
+        actions = [ofp_parser.OFPActionSetField(ipv4_dst=target_server),
+                   ofp_parser.OFPActionOutput(self.ip_to_port[target_server])]
+        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)
         
         mod = ofp_parser.OFPFlowMod(
             datapath=datapath,
@@ -119,14 +92,13 @@ class LoadBalancer(app_manager.RyuApp):
 
         datapath.send_msg(mod)
 
-        # Generate reverse flow from server to host.
-        match = ofp_parser.OFPMatch(in_port=self.ip_to_port[self.current_server],
-                                    ipv4_src=self.current_server,
+        match = ofp_parser.OFPMatch(in_port=self.ip_to_port[target_server],
+                                    ipv4_src=target_server,
                                     ipv4_dst=srcIp,
                                     eth_type=0x0800)
         actions = [ofp_parser.OFPActionSetField(ipv4_src=self.virtual_ip),
                    ofp_parser.OFPActionOutput(in_port)]
-        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
+        inst = [ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)
 
         mod = ofp_parser.OFPFlowMod(
             datapath=datapath,
