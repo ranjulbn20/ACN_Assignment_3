@@ -45,7 +45,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         # correctly.  The bug has been fixed in OVS v2.1.0.
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(port=ofproto.OFPP_FLOOD)]
-        #self.add_flow(datapath, 0, match, actions)
+        self.add_flow(datapath, 0, match, actions)
 
     def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
