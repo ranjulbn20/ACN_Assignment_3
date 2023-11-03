@@ -107,8 +107,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         else:
             out_port = ofproto.OFPP_FLOOD
 
-        pair_tuple = (('10.0.0.1', '10.0.0.4'), ('10.0.0.4', '10.0.0.1'))
-        if (src_ip,dest_ip) in pair_tuple:
+        pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'), ('00:00:00:00:00:04', '00:00:00:00:00:01'))
+        if (src,dst) in pair_tuple:
             actions = []
             print("Pair exists in the tuple.")
         else:
