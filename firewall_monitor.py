@@ -81,8 +81,12 @@ class SimpleSwitch13(app_manager.RyuApp):
         eth = pkt.get_protocols(ethernet.ethernet)[0]
 
         ip = pkt.get_protocol(ipv4.ipv4)
-        src_ip = ip.src
-        dest_ip = ip.dst
+
+        if ip:
+            src_ip = ip.src
+            dest_ip = ip.dst
+        else:
+            print("No IP")
 
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
