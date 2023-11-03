@@ -106,14 +106,14 @@ class SimpleSwitch13(app_manager.RyuApp):
             out_port = self.mac_to_port[dpid][dst]
         else:
             out_port = ofproto.OFPP_FLOOD
-
+        print(src,dst)
         pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'), ('00:00:00:00:00:04', '00:00:00:00:00:01'))
         if (src,dst) in pair_tuple:
             actions = []
             print("Pair exists in the tuple.")
         else:
             actions = [parser.OFPActionOutput(out_port)]
-            print("Pair does not exist in the tuple.",src_ip,dest_ip)
+            print("Pair does not exist in the tuple.")
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
