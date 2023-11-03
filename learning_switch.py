@@ -86,12 +86,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         dst = eth.dst
         src = eth.src
 
-        icmp_pkt = pkt.get_protocol(icmp.icmp)
-        if icmp_pkt:
-            print("This is an ICMP (ping) packet.")
-        else:
-            print("This is not an ICMP (ping) packet.")
-
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
 

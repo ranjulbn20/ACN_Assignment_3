@@ -21,6 +21,8 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
+from ryu.lib.packet import icmp
+from ryu.lib.packet import ipv4
 
 
 class SimpleSwitch13(app_manager.RyuApp):
@@ -82,8 +84,23 @@ class SimpleSwitch13(app_manager.RyuApp):
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
+        
         dst = eth.dst
         src = eth.src
+
+        ip1 = '10.0.0.1'
+        ip2 = '10.0.0.2'
+        ip3 = '10.0.0.3'
+        ip4 = '10.0.0.4'
+        ip5 = '10.0.0.5'
+
+        pair_tuple = ((ip1, ip4), (ip4, ip1), (ip2, ip5),
+                      (ip5, ip2), (ip3, ip5), (ip5, ip3))
+
+        ip = pkt.get_protocols(ipv4.ipv4)
+        if ip:
+            if (ip.src, ip.dst) in pair_tuple:
+                return
 
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
@@ -97,15 +114,6 @@ class SimpleSwitch13(app_manager.RyuApp):
             out_port = self.mac_to_port[dpid][dst]
         else:
             out_port = ofproto.OFPP_FLOOD
-
-        pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'),
-                      ('00:00:00:00:00:04', '00:00:00:00:00:01'))
-        if (src, dst) in pair_tuple:
-            actions = []
-            print("Pair exists in the tuple.")
-        else:
-            actions = [parser.OFPActionOutput(out_port)]
-            print("Pair does not exist in the tuple.")
 
         actions = [parser.OFPActionOutput(out_port)]
 
