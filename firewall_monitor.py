@@ -21,6 +21,7 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
+from ryu.lib.packet import ipv4
 
 
 class SimpleSwitch13(app_manager.RyuApp):
@@ -79,6 +80,10 @@ class SimpleSwitch13(app_manager.RyuApp):
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
 
+        ip = pkt.get_protocol(ipv4.ipv4)
+        src_ip = ip.src
+        dest_ip = ip.dst
+
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
@@ -98,8 +103,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         else:
             out_port = ofproto.OFPP_FLOOD
 
-        pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'), ('00:00:00:00:00:02', '00:00:00:00:00:05'), ('00:00:00:00:00:05', '00:00:00:00:00:02'),('00:00:00:00:00:05', '00:00:00:00:00:03'),('00:00:00:00:00:03', '00:00:00:00:00:05'))
-        if (src,dst) in pair_tuple:
+        pair_tuple = (('10.0.0.1', '10.0.0.4'), ('10.0.0.4', '10.0.0.1'))
+        if (src_ip,dest_ip) in pair_tuple:
             actions = []
             print("Pair exists in the tuple.")
         else:
