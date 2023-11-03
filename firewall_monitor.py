@@ -21,7 +21,6 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
-from ryu.lib.packet import ipv4
 
 
 class SimpleSwitch13(app_manager.RyuApp):
@@ -80,14 +79,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
 
-        ip = pkt.get_protocol(ipv4.ipv4)
-
-        if ip:
-            src_ip = ip.src
-            dest_ip = ip.dst
-        else:
-            print("No IP")
-
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
@@ -106,14 +97,17 @@ class SimpleSwitch13(app_manager.RyuApp):
             out_port = self.mac_to_port[dpid][dst]
         else:
             out_port = ofproto.OFPP_FLOOD
-        print(src,dst)
-        pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'), ('00:00:00:00:00:04', '00:00:00:00:00:01'))
-        if (src,dst) in pair_tuple:
+
+        pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'),
+                      ('00:00:00:00:00:04', '00:00:00:00:00:01'))
+        if (src, dst) in pair_tuple:
             actions = []
             print("Pair exists in the tuple.")
         else:
             actions = [parser.OFPActionOutput(out_port)]
             print("Pair does not exist in the tuple.")
+
+        #actions = [parser.OFPActionOutput(out_port)]
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
