@@ -1,67 +1,123 @@
-from mininet.topo import Topo
-from mininet.net import Mininet
-from mininet.node import RemoteController
-from mininet.cli import CLI
+# Copyright (C) 2011 Nippon Telegraph and Telephone Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-class CustomTopology(Topo):
-    def build(self):
-        # Add switches
-        s1 = self.addSwitch('s1')
-        s2 = self.addSwitch('s2')
+from ryu.base import app_manager
+from ryu.controller import ofp_event
+from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
+from ryu.controller.handler import set_ev_cls
+from ryu.ofproto import ofproto_v1_3
+from ryu.lib.packet import packet
+from ryu.lib.packet import ethernet
+from ryu.lib.packet import ether_types
 
-        # Add hosts
-        self.h1 = self.addHost('h1')
-        self.h2 = self.addHost('h2')
-        self.h3 = self.addHost('h3')
-        self.h4 = self.addHost('h4')
-        self.h5 = self.addHost('h5')
 
-        # Add links
-        self.addLink(s1, s2)
-        self.addLink(self.h1, s1)
-        self.addLink(self.h2, s1)
-        self.addLink(self.h3, s1)
-        self.addLink(self.h4, s2)
-        self.addLink(self.h5, s2)
+class SimpleSwitch13(app_manager.RyuApp):
+    OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-topos = {'mytopo': (lambda: CustomTopology())}
+    def __init__(self, *args, **kwargs):
+        super(SimpleSwitch13, self).__init__(*args, **kwargs)
+        self.mac_to_port = {}
 
-# Create the network
-net = Mininet(topo=CustomTopology(), controller=RemoteController)
+    @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
+    def switch_features_handler(self, ev):
+        datapath = ev.msg.datapath
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
 
-# Start the network
-net.start()
+        # install table-miss flow entry
+        #
+        # We specify NO BUFFER to max_len of the output action due to
+        # OVS bug. At this moment, if we specify a lesser number, e.g.,
+        # 128, OVS will send Packet-In with invalid buffer_id and
+        # truncated packet data. In that case, we cannot output packets
+        # correctly.  The bug has been fixed in OVS v2.1.0.
+        match = parser.OFPMatch()
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+                                          ofproto.OFPCML_NO_BUFFER)]
+        self.add_flow(datapath, 0, match, actions)
 
-# Get host objects
-h1 = net.get('h1')
-h2 = net.get('h2')
-h3 = net.get('h3')
-h4 = net.get('h4')
-h5 = net.get('h5')
+    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
 
-# Add OpenFlow rules to implement the firewall
-s1 = net.get('s1')
-s2 = net.get('s2')
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+                                             actions)]
+        if buffer_id:
+            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
+                                    priority=priority, match=match,
+                                    instructions=inst)
+        else:
+            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                    match=match, instructions=inst)
+        datapath.send_msg(mod)
 
-# # Block communication between H2 and H3 with H5 on switch S1
-# s1.dpctl('add-flow in_port=1,dl_dst=' + h2.MAC() + ',actions=drop')
-# s1.dpctl('add-flow in_port=1,dl_dst=' + h3.MAC() + ',actions=drop')
-# s1.dpctl('add-flow in_port=1,dl_dst=' + h5.MAC() + ',actions=drop')
+    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+    def _packet_in_handler(self, ev):
+        # If you hit this you might want to increase
+        # the "miss_send_length" of your switch
+        if ev.msg.msg_len < ev.msg.total_len:
+            self.logger.debug("packet truncated: only %s of %s bytes",
+                              ev.msg.msg_len, ev.msg.total_len)
+        msg = ev.msg
+        datapath = msg.datapath
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        in_port = msg.match['in_port']
 
-# # Block communication between H1 and H4 on switch S2
-# s2.dpctl('add-flow in_port=1,dl_dst=' + h1.MAC() + ',actions=drop')
-# s2.dpctl('add-flow in_port=1,dl_dst=' + h4.MAC() + ',actions=drop')
+        pkt = packet.Packet(msg.data)
+        eth = pkt.get_protocols(ethernet.ethernet)[0]
 
-s2.dpctl('add-flow priority=500,ip,nw_src=10.0.0.1,nw_dst=10.0.0.4,actions=drop')
-s1.dpctl('add-flow priority=500,ip,nw_src=10.0.0.2,nw_dst=10.0.0.3,actions=drop')
-s1.dpctl('add-flow priority=500,ip,nw_src=10.0.0.2,nw_dst=10.0.0.5,actions=drop')
-s1.dpctl('add-flow priority=500,ip,nw_src=10.0.0.3,nw_dst=10.0.0.5,actions=drop')
+        if eth.ethertype == ether_types.ETH_TYPE_LLDP:
+            # ignore lldp packet
+            return
+        dst = eth.dst
+        src = eth.src
 
-# Count packets coming from H3 on switch S1
-s1.dpctl('add-flow in_port=3,actions=controller')
+        dpid = datapath.id
+        self.mac_to_port.setdefault(dpid, {})
 
-# Start the Mininet CLI
-CLI(net)
+        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
 
-# Stop the network
-net.stop()
+        # learn a mac address to avoid FLOOD next time.
+        self.mac_to_port[dpid][src] = in_port
+
+        if dst in self.mac_to_port[dpid]:
+            out_port = self.mac_to_port[dpid][dst]
+        else:
+            out_port = ofproto.OFPP_FLOOD
+
+        pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'), ('00:00:00:00:00:02', '00:00:00:00:00:05'), ('00:00:00:00:00:05', '00:00:00:00:00:02'),('00:00:00:00:00:05', '00:00:00:00:00:03'),('00:00:00:00:00:03', '00:00:00:00:00:05'))
+        if (src,dst) in pair_tuple:
+            actions = []
+        else:
+            actions = [parser.OFPActionOutput(out_port)]
+
+        # install a flow to avoid packet_in next time
+        if out_port != ofproto.OFPP_FLOOD:
+            match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
+            # verify if we have a valid buffer_id, if yes avoid to send both
+            # flow_mod & packet_out
+            if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+                return
+            else:
+                self.add_flow(datapath, 1, match, actions)
+        data = None
+        if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+            data = msg.data
+
+        out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+                                  in_port=in_port, actions=actions, data=data)
+        datapath.send_msg(out)
