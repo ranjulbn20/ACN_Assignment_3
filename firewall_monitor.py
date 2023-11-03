@@ -117,8 +117,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         if dpid == 1:
             if in_port == 4:
                 self.countPackets +=1
-        
-        self.logger.info("Count of packets from H3 on switch 1: ",self.countPackets)
+                print("Count of packets from H3 on switch 1: ",self.countPackets)
 
         if dst in self.mac_to_port[dpid]:
             out_port = self.mac_to_port[dpid][dst]
