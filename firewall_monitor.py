@@ -107,7 +107,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             actions = [parser.OFPActionOutput(out_port)]
             print("Pair does not exist in the tuple.")
 
-        #actions = [parser.OFPActionOutput(out_port)]
+        actions = [parser.OFPActionOutput(out_port)]
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
