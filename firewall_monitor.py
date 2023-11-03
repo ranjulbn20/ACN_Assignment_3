@@ -76,6 +76,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         in_port = msg.match['in_port']
+        dpid = datapath.id
 
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
@@ -103,20 +104,16 @@ class SimpleSwitch13(app_manager.RyuApp):
             if (sc, dest) in pair_tuple:
                 return
             
+        if dpid == 1:
+            if in_port == 4:
+                self.countPackets +=1
+                print("Count of packets from H3 on switch 1: ",self.countPackets)
+            
         out_port = ofproto.OFPP_FLOOD
 
         actions = [parser.OFPActionOutput(out_port)]
 
-        # install a flow to avoid packet_in next time
-        # if out_port != ofproto.OFPP_FLOOD:
-        #     match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
-        #     # verify if we have a valid buffer_id, if yes avoid to send both
-        #     # flow_mod & packet_out
-        #     if msg.buffer_id != ofproto.OFP_NO_BUFFER:
-        #         self.add_flow(datapath, 1, match, actions, msg.buffer_id)
-        #         return
-        #     else:
-        #         self.add_flow(datapath, 1, match, actions)
+
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
