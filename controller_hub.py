@@ -85,17 +85,23 @@ class SimpleSwitch13(app_manager.RyuApp):
         dst = eth.dst
         src = eth.src
 
-        # dpid = datapath.id
-        # self.mac_to_port.setdefault(dpid, {})
+        # ip1 = '10.0.0.1'
+        # ip2 = '10.0.0.2'
+        # ip3 = '10.0.0.3'
+        # ip4 = '10.0.0.4'
+        # ip5 = '10.0.0.5'
 
-        # self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        # pair_tuple = ((ip1, ip4), (ip4, ip1), (ip2, ip5),
+        #               (ip5, ip2), (ip3, ip5), (ip5, ip3))
 
-        # learn a mac address to avoid FLOOD next time.
-        #self.mac_to_port[dpid][src] = in_port
+        # ip = pkt.get_protocol(ipv4.ipv4)
 
-        # if dst in self.mac_to_port[dpid]:
-        #     out_port = self.mac_to_port[dpid][dst]
-        # else:
+        # if ip:
+        #     sc = ip.src
+        #     dest = ip.dst
+        #     if (sc, dest) in pair_tuple:
+        #         return
+            
         out_port = ofproto.OFPP_FLOOD
 
         actions = [parser.OFPActionOutput(out_port)]
