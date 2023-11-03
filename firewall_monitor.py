@@ -97,9 +97,12 @@ class SimpleSwitch13(app_manager.RyuApp):
         pair_tuple = ((ip1, ip4), (ip4, ip1), (ip2, ip5),
                       (ip5, ip2), (ip3, ip5), (ip5, ip3))
 
-        ip = pkt.get_protocols(ipv4.ipv4)
+        ip = pkt.get_protocol(ipv4.ipv4)
+
         if ip:
-            if (ip.src, ip.dst) in pair_tuple:
+            sc = ip.src
+            dest = ip.dst
+            if (sc, dest) in pair_tuple:
                 return
 
         dpid = datapath.id
