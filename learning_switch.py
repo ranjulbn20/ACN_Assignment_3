@@ -21,6 +21,7 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
+from ryu.lib.packet import icmp
 
 
 class SimpleSwitch13(app_manager.RyuApp):
@@ -85,6 +86,12 @@ class SimpleSwitch13(app_manager.RyuApp):
         dst = eth.dst
         src = eth.src
 
+        icmp_pkt = pkt.get_protocol(icmp.icmp)
+        if icmp_pkt:
+            print("This is an ICMP (ping) packet.")
+        else:
+            print("This is not an ICMP (ping) packet.")
+
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
 
@@ -97,14 +104,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             out_port = self.mac_to_port[dpid][dst]
         else:
             out_port = ofproto.OFPP_FLOOD
-        # pair_tuple = (('00:00:00:00:00:01', '00:00:00:00:00:04'),
-        #               ('00:00:00:00:00:04', '00:00:00:00:00:01'))
-        # if (src, dst) in pair_tuple:
-        #     actions = []
-        #     print("Pair exists in the tuple.")
-        # else:
-        #     actions = [parser.OFPActionOutput(out_port)]
-        #     print("Pair does not exist in the tuple.")
+        
         actions = [parser.OFPActionOutput(out_port)]
 
         # install a flow to avoid packet_in next time
