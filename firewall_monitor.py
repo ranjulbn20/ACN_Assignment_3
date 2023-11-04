@@ -102,8 +102,18 @@ class SimpleSwitch13(app_manager.RyuApp):
         ip4 = '10.0.0.4'
         ip5 = '10.0.0.5'
 
+        mac1 = '00:00:00:00:00:01'
+        mac2 = '00:00:00:00:00:02'
+        mac3 = '00:00:00:00:00:03'
+        mac4 = '00:00:00:00:00:04'
+        mac5 = '00:00:00:00:00:05'
+
         pair_tuple = ((ip1, ip4), (ip4, ip1), (ip2, ip5),
                       (ip5, ip2), (ip3, ip5), (ip5, ip3))
+        
+        mac_pair_tuple = ((mac1, mac4), (mac4, mac1), (mac2, mac5),
+                      (mac5, mac2), (mac3, mac5), (mac5, mac3))
+        
 
         ip = pkt.get_protocol(ipv4.ipv4)
 
@@ -112,6 +122,8 @@ class SimpleSwitch13(app_manager.RyuApp):
             dest = ip.dst
             if (sc, dest) in pair_tuple:
                 return
+        elif (src,dst) in mac_pair_tuple:
+            return
             
         if dpid == 1:
             if in_port == 4:
