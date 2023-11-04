@@ -94,6 +94,28 @@ class SimpleSwitch13(app_manager.RyuApp):
         # learn a mac address to avoid FLOOD next time.
         self.mac_to_port[dpid][src] = in_port
 
+        # ip1 = '10.0.0.1'
+        # ip2 = '10.0.0.2'
+        # ip3 = '10.0.0.3'
+        # ip4 = '10.0.0.4'
+        # ip5 = '10.0.0.5'
+
+        # pair_tuple = ((ip1, ip4), (ip4, ip1), (ip2, ip5),
+        #               (ip5, ip2), (ip3, ip5), (ip5, ip3))
+
+        # ip = pkt.get_protocol(ipv4.ipv4)
+
+        # if ip:
+        #     sc = ip.src
+        #     dest = ip.dst
+        #     if (sc, dest) in pair_tuple:
+        #         return
+            
+        # if dpid == 1:
+        #     if in_port == 4:
+        #         self.countPackets +=1
+        #         print("Count of packets from H3 on switch 1: ",self.countPackets)
+
         if dst in self.mac_to_port[dpid]:
             out_port = self.mac_to_port[dpid][dst]
         else:
