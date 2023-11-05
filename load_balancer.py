@@ -22,7 +22,6 @@ class SimpleSwitch13(app_manager.RyuApp):
     switch_port = 1
     h5_ip = '10.0.0.5'
     h5_mac = '00:00:00:00:00:05'
-    switch_port = 1
 
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch13, self).__init__(*args, **kwargs)
