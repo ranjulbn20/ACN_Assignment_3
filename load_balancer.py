@@ -111,13 +111,10 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         # Handle ARP Packet
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
-            arp_header = pkt.get_protocol(arp.arp)
+            arp_obj = pkt.get_protocol(arp.arp)
 
-            if arp_header.dst_ip == self.VIRTUAL_IP and arp_header.opcode == arp.ARP_REQUEST:
-                self.logger.info("***************************")
-                self.logger.info("---Handle ARP Packet---")
-                # Build an ARP reply packet using source IP and source MAC
-                reply_packet = self.generate_arp_reply(arp_header.src_ip, arp_header.src_mac)
+            if arp_obj.dst_ip == self.VIRTUAL_IP and arp_obj.opcode == arp.ARP_REQUEST:
+                reply_packet = self.generate_arp_reply(arp_obj.src_ip, arp_obj.src_mac)
                 actions = [parser.OFPActionOutput(in_port)]
                 packet_out = parser.OFPPacketOut(datapath=datapath, in_port=ofproto.OFPP_ANY,
                                                  data=reply_packet.data, actions=actions, buffer_id=0xffffffff)
@@ -210,3 +207,5 @@ class SimpleSwitch13(app_manager.RyuApp):
                              str(in_port) + "====>")
             packet_handled = True
         return packet_handled
+    
+   
