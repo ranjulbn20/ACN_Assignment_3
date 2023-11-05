@@ -79,7 +79,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
 
-        self.logger.info("packet in %s %s %s %s", dpid, src_mac, dst_mac, in_port)
+        self.logger.info("packet in %s %s %s %s", dpid,
+                         src_mac, dst_mac, in_port)
 
         # learn a mac address to avoid FLOOD next time.
         self.mac_to_port[dpid][src_mac] = in_port
@@ -93,7 +94,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
-            match = parser.OFPMatch(in_port=in_port, eth_dst=dst_mac, eth_src=src_mac)
+            match = parser.OFPMatch(
+                in_port=in_port, eth_dst=dst_mac, eth_src=src_mac)
             # verify if we have a valid buffer_id, if yes avoid to send both
             # flow_mod & packet_out
             if msg.buffer_id != ofproto.OFP_NO_BUFFER:
@@ -102,9 +104,9 @@ class SimpleSwitch13(app_manager.RyuApp):
             else:
                 self.add_flow(datapath, 10, match, actions)
 
-        if self.handle_packets(eth.ethertype, datapath, pkt,in_port, parser, dst_mac, src_mac):
+        if self.handle_packets(eth.ethertype, datapath, pkt, in_port, parser, dst_mac, src_mac):
             return
-        
+
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
@@ -112,9 +114,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
                                   in_port=in_port, actions=actions, data=data)
         datapath.send_msg(out)
-    
-    #self.handle_packets(eth.ethertype, datapath, pkt,in_port, ip_header, parser, dst_mac, src_mac)
-    def handle_packets(self,ethtype,datapath, pkt, in_port, parser, dst_mac, src_mac):
+
+    def handle_packets(self, ethtype, datapath, pkt, in_port, parser, dst_mac, src_mac):
         handle = False
         if ethtype == ETH_TYPE_IP:
             ip = pkt.get_protocol(ipv4.ipv4)
@@ -132,21 +133,46 @@ class SimpleSwitch13(app_manager.RyuApp):
                                         ipv4_dst=self.VIRTUAL_IP)
 
                 actions = [parser.OFPActionSetField(ipv4_dst=server_dst_ip),
-                        parser.OFPActionOutput(server_out_port)]
+                           parser.OFPActionOutput(server_out_port)]
 
                 self.add_flow(datapath, 20, match, actions)
-                
+
                 # Reverse route from server
                 match = parser.OFPMatch(in_port=server_out_port, eth_type=ETH_TYPE_IP,
                                         ip_proto=ip.proto,
                                         ipv4_src=server_dst_ip,
                                         eth_dst=src_mac)
                 actions = [parser.OFPActionSetField(ipv4_src=self.VIRTUAL_IP),
-                        parser.OFPActionOutput(in_port)]
+                           parser.OFPActionOutput(in_port)]
 
                 self.add_flow(datapath, 20, match, actions)
-            return handle
+
         elif ethtype == ether_types.ETH_TYPE_ARP:
             arp_obj = pkt.get_protocol(arp.arp)
 
-            
+            arp_target_ip = arp_obj.src_ip
+            arp_target_mac = arp_obj.src_mac
+            src_ip = self.VIRTUAL_IP
+
+            if haddr_to_int(arp_target_mac) % 2 == 1:
+                src_mac = self.SERVER1_MAC
+            else:
+                src_mac = self.SERVER2_MAC
+
+            replypkt = packet.Packet()
+            replypkt.add_protocol(
+                ethernet.ethernet(
+                    dst=dst_mac, src=src_mac, ethertype=ether_types.ETH_TYPE_ARP)
+            )
+            replypkt.add_protocol(
+                arp.arp(opcode=arp.ARP_REPLY, src_mac=src_mac, src_ip=src_ip,
+                        dst_mac=arp_target_mac, dst_ip=arp_target_ip)
+            )
+            replypkt.serialize()
+            actions = [parser.OFPActionOutput(in_port)]
+            packet_out = parser.OFPPacketOut(datapath=datapath, in_port=datapath.ofproto.OFPP_ANY,
+                                             data=replypkt.data, actions=actions, buffer_id=0xffffffff)
+            datapath.send_msg(packet_out)
+            handle = True
+
+        return handle
