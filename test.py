@@ -15,14 +15,14 @@ from ryu.lib.packet import ethernet
 class SimpleSwitch13(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-    VIRTUAL_IP = '10.0.0.42'  # The virtual server IP
+    virtual_ip = '10.0.0.42'  # The virtual server IP
 
-    SERVER1_IP = '10.0.0.4'
-    SERVER1_MAC = '00:00:00:00:00:04'
-    SERVER1_PORT = 1
-    SERVER2_IP = '10.0.0.5'
-    SERVER2_MAC = '00:00:00:00:00:05'
-    SERVER2_PORT = 1
+    h4_ip = '10.0.0.4'
+    h4_mac = '00:00:00:00:00:04'
+    switch_port = 1
+    h5_ip = '10.0.0.5'
+    h5_mac = '00:00:00:00:00:05'
+    switch_port = 1
 
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch13, self).__init__(*args, **kwargs)
@@ -119,18 +119,18 @@ class SimpleSwitch13(app_manager.RyuApp):
         handle = False
         if ethtype == ETH_TYPE_IP:
             ip = pkt.get_protocol(ipv4.ipv4)
-            if ip.dst == self.VIRTUAL_IP:
+            if ip.dst == self.virtual_ip:
                 handle = True
-                if dst_mac == self.SERVER1_MAC:
-                    server_dst_ip = self.SERVER1_IP
-                    server_out_port = self.SERVER1_PORT
+                if dst_mac == self.h4_mac:
+                    server_dst_ip = self.h4_ip
+                    server_out_port = self.switch_port
                 else:
-                    server_dst_ip = self.SERVER2_IP
-                    server_out_port = self.SERVER2_PORT
+                    server_dst_ip = self.h5_ip
+                    server_out_port = self.switch_port
 
                 # Route to server
                 match = parser.OFPMatch(in_port=in_port, eth_type=ETH_TYPE_IP, ip_proto=ip.proto,
-                                        ipv4_dst=self.VIRTUAL_IP)
+                                        ipv4_dst=self.virtual_ip)
 
                 actions = [parser.OFPActionSetField(ipv4_dst=server_dst_ip),
                            parser.OFPActionOutput(server_out_port)]
@@ -142,7 +142,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                                         ip_proto=ip.proto,
                                         ipv4_src=server_dst_ip,
                                         eth_dst=src_mac)
-                actions = [parser.OFPActionSetField(ipv4_src=self.VIRTUAL_IP),
+                actions = [parser.OFPActionSetField(ipv4_src=self.virtual_ip),
                            parser.OFPActionOutput(in_port)]
 
                 self.add_flow(datapath, 20, match, actions)
@@ -150,15 +150,15 @@ class SimpleSwitch13(app_manager.RyuApp):
         elif ethtype == ether_types.ETH_TYPE_ARP:
             arp_obj = pkt.get_protocol(arp.arp)
 
-            if arp_obj.dst_ip == self.VIRTUAL_IP and arp_obj.opcode == arp.ARP_REQUEST:
+            if arp_obj.dst_ip == self.virtual_ip and arp_obj.opcode == arp.ARP_REQUEST:
                 arp_target_ip = arp_obj.src_ip
                 arp_target_mac = arp_obj.src_mac
-                src_ip = self.VIRTUAL_IP
+                src_ip = self.virtual_ip
 
                 if haddr_to_int(arp_target_mac) % 2 == 1:
-                    src_mac = self.SERVER1_MAC
+                    src_mac = self.h4_mac
                 else:
-                    src_mac = self.SERVER2_MAC
+                    src_mac = self.h5_mac
 
                 replypkt = packet.Packet()
                 replypkt.add_protocol(
