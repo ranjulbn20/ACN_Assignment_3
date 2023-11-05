@@ -150,29 +150,31 @@ class SimpleSwitch13(app_manager.RyuApp):
         elif ethtype == ether_types.ETH_TYPE_ARP:
             arp_obj = pkt.get_protocol(arp.arp)
 
-            arp_target_ip = arp_obj.src_ip
-            arp_target_mac = arp_obj.src_mac
-            src_ip = self.VIRTUAL_IP
+            if arp_obj.dst_ip == self.VIRTUAL_IP and arp_obj.opcode == arp.ARP_REQUEST:
+                arp_target_ip = arp_obj.src_ip
+                arp_target_mac = arp_obj.src_mac
+                src_ip = self.VIRTUAL_IP
 
-            if haddr_to_int(arp_target_mac) % 2 == 1:
-                src_mac = self.SERVER1_MAC
-            else:
-                src_mac = self.SERVER2_MAC
+                if haddr_to_int(arp_target_mac) % 2 == 1:
+                    src_mac = self.SERVER1_MAC
+                else:
+                    src_mac = self.SERVER2_MAC
 
-            replypkt = packet.Packet()
-            replypkt.add_protocol(
-                ethernet.ethernet(
-                    dst=dst_mac, src=src_mac, ethertype=ether_types.ETH_TYPE_ARP)
-            )
-            replypkt.add_protocol(
-                arp.arp(opcode=arp.ARP_REPLY, src_mac=src_mac, src_ip=src_ip,
-                        dst_mac=arp_target_mac, dst_ip=arp_target_ip)
-            )
-            replypkt.serialize()
-            actions = [parser.OFPActionOutput(in_port)]
-            packet_out = parser.OFPPacketOut(datapath=datapath, in_port=datapath.ofproto.OFPP_ANY,
-                                             data=replypkt.data, actions=actions, buffer_id=0xffffffff)
-            datapath.send_msg(packet_out)
-            handle = True
+                replypkt = packet.Packet()
+                replypkt.add_protocol(
+                    ethernet.ethernet(
+                        dst=dst_mac, src=src_mac, ethertype=ether_types.ETH_TYPE_ARP)
+                )
+                replypkt.add_protocol(
+                    arp.arp(opcode=arp.ARP_REPLY, src_mac=src_mac, src_ip=src_ip,
+                            dst_mac=arp_target_mac, dst_ip=arp_target_ip)
+                )
+                replypkt.serialize()
+
+                actions = [parser.OFPActionOutput(in_port)]
+                packet_out = parser.OFPPacketOut(datapath=datapath, in_port=(datapath.ofproto).OFPP_ANY,
+                                                data=replypkt.data, actions=actions, buffer_id=0xffffffff)
+                datapath.send_msg(packet_out)
+                handle = True
 
         return handle
